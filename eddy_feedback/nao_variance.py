@@ -12,19 +12,24 @@ from scipy.stats import linregress
 
 import eddy_feedback
 
-filename_pattern = "nao_{filter_length}-year-variance_{months}_{years}.csv"
+filename_pattern = "nao_{filter_length}-year-variance_{months}.csv"
+reanalysis_datasets = ["ERA5", "ERA20C", "20CRv3", "HadSLP2"]
 
 
 def main():
     diag = "north_atlantic_oscillation"
-    reanalysis_datasets = ["ERA5", "HadSLP2"]
-    months = ["Dec", "Jan", "Feb"]
     seasons = ["ndjfma", "mjjaso"]
-    years = "1850-2014"
     filter_length = 20
-    detrend_nao = True
-    normalise_variance = False
 
+    for months in [["Dec", "Jan", "Feb"], ["Dec", "Jan", "Feb", "Mar"]]:
+        for detrend_nao in [True, False]:
+            for normalise_variance in [True, False]:
+                generate_csv(
+                    diag, months, seasons, filter_length, detrend_nao, normalise_variance
+                )
+
+
+def generate_csv(diag, months, seasons, filter_length, detrend_nao, normalise_variance):
     # List of values of NAO variance to save as a pandas DataFrame
     rows_list = []
 
@@ -60,7 +65,6 @@ def main():
         diag=diag,
         filter_length=filter_length,
         months="".join([m[0] for m in months]),
-        years=years,
         detrend_nao=detrend_nao,
         normalise_variance=normalise_variance
     )
@@ -164,9 +168,9 @@ def detrend(cube, time_coord="season_year"):
     return cube.copy(data=detrended_data)
 
 
-def formatted_filename(diag, filter_length, months, years, detrend_nao, normalise_variance):
+def formatted_filename(diag, filter_length, months, detrend_nao, normalise_variance):
     filename = str(eddy_feedback.diagnostic_path[diag] / filename_pattern.format(
-        filter_length=filter_length, months=months, years=years,
+        filter_length=filter_length, months=months,
     ))
     if detrend_nao:
         filename = filename.replace(".csv", "_detrended.csv")
