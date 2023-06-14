@@ -6,6 +6,7 @@ from tqdm import tqdm
 import iris
 from iris.analysis import MEAN, STD_DEV
 from iris.coord_categorisation import add_month, add_season_year
+from iris.util import broadcast_to_shape
 from irise.grid import get_datetime
 import pandas as pd
 from scipy.stats import linregress
@@ -104,29 +105,7 @@ def nao_variance_from_monthly_data(
     iris.cube.Cube
 
     """
-    if "month" not in [c.name() for c in nao.coords()]:
-        add_month(nao, "time")
-    nao = nao.extract(iris.Constraint(month=months))
-
-    if "season_year" not in [c.name() for c in nao.coords()]:
-        add_season_year(nao, "time", seasons=seasons)
-
-    # Account for different month lengths in weights
-    # Easiest is to use the bounds on the time coordinate but if that isn't saved, use
-    # datetimes to determine the length of each month
-    if nao.coord("time").bounds is not None:
-        weights = np.array([x[1] - x[0] for x in nao.coord("time").bounds])
-    else:
-        weights = np.array([
-            (datetime.datetime(x.year, x.month, 1) + relativedelta(months=1) -
-             datetime.datetime(x.year, x.month, 1)).total_seconds() / (3600 * 24)
-            for x in get_datetime(nao)
-        ])
-
-    #
-    weights_cube = nao.copy(data=weights)
-    weights_sum = weights_cube.aggregated_by("season_year", MEAN)[1:-1]
-    nao = (nao * weights).aggregated_by("season_year", MEAN)[1:-1] / weights_sum
+    nao = season_mean(nao, months, seasons)
 
     if detrend_nao:
         nao = detrend(nao)
@@ -141,6 +120,41 @@ def nao_variance_from_monthly_data(
             nao_variance = nao_variance / nao.collapsed("season_year", STD_DEV) ** 2
 
         return nao_variance
+
+
+def season_mean(cube, months, seasons):
+    if "month" not in [c.name() for c in cube.coords()]:
+        add_month(cube, "time")
+    cube = cube.extract(iris.Constraint(month=months))
+
+    if "season_year" not in [c.name() for c in cube.coords()]:
+        add_season_year(cube, "time", seasons=seasons)
+
+    # Account for different month lengths in weights
+    # Easiest is to use the bounds on the time coordinate but if that isn't saved, use
+    # datetimes to determine the length of each month
+    if cube.coord("time").bounds is not None:
+        weights = np.array([x[1] - x[0] for x in cube.coord("time").bounds])
+    else:
+        weights = np.array([
+            (datetime.datetime(x.year, x.month, 1) + relativedelta(months=1) -
+             datetime.datetime(x.year, x.month, 1)).total_seconds() / (3600 * 24)
+            for x in get_datetime(cube)
+        ])
+
+    # Newer versions of iris allow the weights to be specified for aggregated_by but
+    # for now this works fine
+    weights = broadcast_to_shape(weights, cube.shape, cube.coord_dims("time"))
+    weights_cube = cube.copy(data=weights)
+    weights_sum = weights_cube.aggregated_by("season_year", MEAN)
+    cube = (cube * weights).aggregated_by("season_year", MEAN) / weights_sum
+
+    # Select only full seasons by checking that all months are present
+    cube = cube.extract(iris.Constraint(
+        month=lambda x: np.array([month in x.point for month in months]).all()
+    ))
+
+    return cube
 
 
 def detrend(cube, time_coord="season_year"):
