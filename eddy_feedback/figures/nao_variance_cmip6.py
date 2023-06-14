@@ -35,7 +35,7 @@ def main():
     plt.title("CMIP6 NAO {}-year running mean, {}, {}".format(
         filter_length, years, months
     ))
-    filename_plot = eddy_feedback.plotdir / filename.split("/").replace(".csv", ".png")
+    filename_plot = eddy_feedback.plotdir / filename.split("/")[-1].replace(".csv", ".png")
     plt.savefig(filename_plot)
     plt.show()
 
