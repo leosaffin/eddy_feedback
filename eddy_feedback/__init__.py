@@ -3,6 +3,7 @@ import re
 
 from parse import parse
 import pandas as pd
+import iris
 
 plotdir = pathlib.Path(
     "~/Documents/meteorology/output/constrain/eddy_feedback/"
@@ -25,9 +26,16 @@ filename_pattern = dict(
 )
 
 
-def get_diagnostic(diagnostic, model):
+def get_reanalysis_diagnostic(diagnostic, reanalysis="ERA5", **other_keywords):
+    filename = str(
+            diagnostic_path[diagnostic] /
+            filename_pattern[diagnostic].replace("_historical_{variant}", "")
+    )
 
-    return
+    filename = partial_string_format_by_name(filename, dict(model=reanalysis))
+    filename = partial_string_format_by_name(filename, other_keywords)
+
+    return iris.load_cube(filename)
 
 
 def get_files_by_model(diagnostic, **kwargs):
