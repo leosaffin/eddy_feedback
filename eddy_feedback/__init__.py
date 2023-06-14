@@ -14,6 +14,7 @@ diagnostic_path = dict(
     arctic_oscillation=datadir / "AO_index_data",
     eddy_feedback=datadir / "eddy_feedback_parameter_data/",
     local_eddy_feedback=datadir / "local_eddy_feedback_parameter_data/ESGF_JASMIN",
+    local_eddy_feedback_monthly=datadir / "local_eddy_feedback_parameter_data/Monthly_local_EFP_IPSL/",
     north_atlantic_oscillation=datadir / "NAO_index_data",
     jet=datadir / "Up0NA_index_data",
 )
@@ -21,6 +22,7 @@ filename_pattern = dict(
     arctic_oscillation="AO-index-TW98_{model}_historical_{variant}.nc",
     eddy_feedback="EFP_CMIP6_LE_hist_{model}_{months}_{years}.csv",
     local_eddy_feedback="G_mean_lat_lon_{months}_{model}_historical_{variant}.nc",
+    local_eddy_feedback_monthly="G_lat_lon_{months}_{model}_historical_{variant}_monthly.nc",
     north_atlantic_oscillation="NAOI_monthly_{months}_{model}_historical_{variant}.nc",
     jet="U500NA_monthly_{months}_{model}_historical_{variant}.nc",
 )
