@@ -12,7 +12,7 @@ datadir = pathlib.Path("~/Documents/meteorology/data/constrain/").expanduser()
 
 diagnostic_path = dict(
     arctic_oscillation=datadir / "AO_index_data",
-    eddy_feedback=datadir / "eddy_feedback_parameter_data/",
+    eddy_feedback=datadir / "eddy_feedback_parameter_data/ESGF_JASMIN_IPSL/",
     local_eddy_feedback=datadir / "local_eddy_feedback_parameter_data/ESGF_JASMIN",
     local_eddy_feedback_monthly=datadir / "local_eddy_feedback_parameter_data/Monthly_local_EFP_IPSL/",
     north_atlantic_oscillation=datadir / "NAO_index_data",
