@@ -34,11 +34,11 @@ def main():
 
     # Store a list of each result labelled by the year range
     efp = dict()
+    efp_full = dict()
 
     # Calculate bootstrapped samples of the eddy-feedback parameter over the year ranges
     for year_block in year_blocks:
         label = "{}-{}, 500hPa".format(*year_block)
-        efp[label] = []
         cs = iris.Constraint(
             season_year=lambda cell: year_block[0] < cell <= year_block[1]
         )
@@ -49,6 +49,7 @@ def main():
         efp[label] = bootstrap_eddy_feedback_parameter(
             ep_flux_years, u_zm_years, n_resamples
         )
+        efp_full[label] = eddy_feedback_parameter(ep_flux_years, u_zm_years).data
 
     # Repeat for data on pressure levels
     ep_flux = iris.load_cube(
@@ -64,10 +65,13 @@ def main():
 
     label = "1979-2022, 600-200hPa"
     efp[label] = bootstrap_eddy_feedback_parameter(ep_flux, u_zm, n_resamples)
+    efp_full[label] = eddy_feedback_parameter(ep_flux, u_zm).data
 
     # Plot box-and-whisker plot for each time period
     for n, label in enumerate(efp):
         plt.boxplot(efp[label], positions=[n], whis=(2.5, 97.5))
+        plt.plot(n, efp_full[label], "kx")
+        print(label, efp_full[label])
 
     plt.xticks(range(len(efp)), efp.keys())
     plt.xlabel("Sampling Period")
