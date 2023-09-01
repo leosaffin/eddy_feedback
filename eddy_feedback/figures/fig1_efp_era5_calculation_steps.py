@@ -85,7 +85,7 @@ def main():
         title="Correlation",
     )
 
-    plt.savefig(plotdir / "eddy-feedback-parameter_calculation_steps.png")
+    plt.savefig(plotdir / "fig1_eddy-feedback-parameter_calculation_steps.png")
     plt.show()
 
 

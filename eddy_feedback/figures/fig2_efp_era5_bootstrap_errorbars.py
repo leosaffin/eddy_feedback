@@ -80,7 +80,7 @@ def main():
 
     plt.savefig(
         plotdir /
-        f"eddy-feedback-parameter_era5_plevs_bootstrap_{n_resamples}_samples.png"
+        f"fig2_eddy-feedback-parameter_era5_plevs_bootstrap_{n_resamples}_samples.png"
     )
     plt.show()
 
