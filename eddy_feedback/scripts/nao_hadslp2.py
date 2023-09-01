@@ -4,7 +4,7 @@ from iris.util import equalise_attributes, unify_time_units
 from iris.exceptions import ConcatenateError
 from irise.grid import get_datetime
 
-from constrain import north_atlantic_oscillation
+from constrain import north_atlantic_oscillation, regrid_to_coarsest
 
 from eddy_feedback import datadir
 
@@ -52,9 +52,11 @@ def main():
         mslp.coord(coord).guess_bounds()
 
     iris.save(mslp, datadir / f"constrain/hadslp2{variant}.nc")
+    mslp = iris.load_cube(datadir / f"constrain/hadslp2{variant}.nc")
+    mslp = regrid_to_coarsest(mslp)
     nao = north_atlantic_oscillation.from_boxes(mslp)
 
-    iris.save(nao, datadir / f"NAO_index_data/NAOI_monthly_all_HadSLP2{variant}.nc")
+    iris.save(nao, datadir / f"NAO_index_data/NAOI_monthly_all_HadSLP2{variant}_CanESM5-grid.nc")
 
 
 if __name__ == '__main__':
