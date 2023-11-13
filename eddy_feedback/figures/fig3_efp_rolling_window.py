@@ -11,7 +11,7 @@ from eddy_feedback import datadir, plotdir
 
 
 def main():
-    data_path = datadir / "constrain/"
+    data_path = datadir / "eddy_feedback/daily_mean/"
     window_size = 23
     months = ["Dec", "Jan", "Feb"]
 
@@ -28,12 +28,9 @@ def main():
             if "600-200" in pressure_levels:
                 filename = data_path / f"{reanalysis.lower()}_daily_{variable}_{pressure_levels}_{months_str}.nc"
             else:
-                filename = data_path / "eddy_feedback/daily_mean/" / f"{reanalysis.lower()}_daily_{variable}_{months_str}.nc"
+                filename = data_path / f"{reanalysis.lower()}_daily_{variable}_{months_str}.nc"
             cube = iris.load_cube(filename, cs)
 
-            # Depth average for pressure level data
-            if "600-200" in pressure_levels:
-                cube = cube.collapsed("pressure_level", MEAN)
             cube = cube.aggregated_by("season_year", MEAN)[1:-1]
             data.append(cube)
 
@@ -64,9 +61,12 @@ def efp_rolling_window(ep_flux, u_zm, window_size):
 
         corr = eddy_feedback_parameter.eddy_feedback_parameter(
             ep_flux_sub, u_zm_sub
-        ).data
+        )
 
-        efp.append(corr)
+        if "pressure_level" in [c.name() for c in corr.coords()]:
+            corr = corr.collapsed("pressure_level", MEAN)
+
+        efp.append(corr.data)
 
     coord = DimCoord(points=years + (window_size + 1) // 2, long_name="start_year")
     efp = iris.cube.Cube(

@@ -19,61 +19,58 @@ from eddy_feedback.nao_variance import season_mean
 
 
 def main():
-    n_resamples = 100
+    data_path = datadir / "eddy_feedback/daily_mean"
+
+    n_resamples = 1000
     months = ["Dec", "Jan", "Feb"]
     seasons = ["ndjfma", "mjjaso"]
     year_blocks = [(1940, 2022), (1940, 1979), (1979, 2022)]
 
-    data_path = datadir / "constrain/eddy_feedback/daily_mean"
-    plt.figure(figsize=(8, 5))
-
-    ep_flux = iris.load_cube(data_path / "era5_daily_EP-flux-divergence_NDJFM.nc")
-    ep_flux = season_mean(ep_flux, months, seasons)
-    u_zm = iris.load_cube(data_path / "era5_daily_zonal-mean-zonal-wind_NDJFM.nc")
-    u_zm = season_mean(u_zm, months, seasons)
-
-    # Store a list of each result labelled by the year range
+    # Store a list of each result labelled by the year range and pressure levels
     efp = dict()
     efp_full = dict()
 
-    # Calculate bootstrapped samples of the eddy-feedback parameter over the year ranges
-    for year_block in year_blocks:
-        label = "{}-{}, 500hPa".format(*year_block)
-        cs = iris.Constraint(
-            season_year=lambda cell: year_block[0] < cell <= year_block[1]
-        )
+    for plevs, suffix in [("500hPa", "NDJFM"), ("600-200hPa", "600-200hPa_DJF")]:
+        ep_flux = iris.load_cube(data_path / f"era5_daily_EP-flux-divergence_{suffix}.nc")
+        ep_flux = season_mean(ep_flux, months, seasons)
+        u_zm = iris.load_cube(data_path / f"era5_daily_zonal-mean-zonal-wind_{suffix}.nc")
+        u_zm = season_mean(u_zm, months, seasons)
 
-        ep_flux_years = ep_flux.extract(cs)
-        u_zm_years = u_zm.extract(cs)
+        # Calculate bootstrapped samples of the eddy-feedback parameter over the year ranges
+        for year_block in year_blocks:
+            label = "{}-{}\n{}".format(*year_block, plevs)
+            cs = iris.Constraint(
+                season_year=lambda cell: year_block[0] < cell <= year_block[1]
+            )
 
-        efp[label] = bootstrap_eddy_feedback_parameter(
-            ep_flux_years, u_zm_years, n_resamples
-        )
-        efp_full[label] = eddy_feedback_parameter(ep_flux_years, u_zm_years).data
+            ep_flux_years = ep_flux.extract(cs)
+            u_zm_years = u_zm.extract(cs)
 
-    # Repeat for data on pressure levels
-    ep_flux = iris.load_cube(
-        data_path / "era5_daily_EP-flux-divergence_600-200hPa_NDJFM.nc"
-    )
-    ep_flux = season_mean(ep_flux, months, seasons)
-    ep_flux = ep_flux.collapsed("pressure_level", MEAN)
-    u_zm = iris.load_cube(
-        data_path / "era5_daily_zonal-mean-zonal-wind_600-200hPa_NDJFM.nc"
-    )
-    u_zm = season_mean(u_zm, months, seasons)
-    u_zm = u_zm.collapsed("pressure_level", MEAN)
+            efp[label] = bootstrap_eddy_feedback_parameter(
+                ep_flux_years, u_zm_years, n_resamples
+            )
 
-    label = "1979-2022, 600-200hPa"
-    efp[label] = bootstrap_eddy_feedback_parameter(ep_flux, u_zm, n_resamples)
-    efp_full[label] = eddy_feedback_parameter(ep_flux, u_zm).data
+            result_full = eddy_feedback_parameter(ep_flux_years, u_zm_years)
+            if plevs == "600-200hPa":
+                result_full = result_full.collapsed("pressure_level", MEAN)
+            efp_full[label] = result_full.data
 
     # Plot box-and-whisker plot for each time period
-    for n, label in enumerate(efp):
+    plt.figure(figsize=(8, 5))
+    n = 0
+    for label in efp:
         plt.boxplot(efp[label], positions=[n], whis=(2.5, 97.5))
         plt.plot(n, efp_full[label], "kx")
         print(label, efp_full[label])
 
-    plt.xticks(range(len(efp)), efp.keys())
+        n += 1
+
+        # Add a gap between different pressure level calculations
+        if n == 3:
+            n += 1
+
+    plt.xticks(range(3), efp.keys()[:3])
+    plt.xticks(range(4, 7), efp.keys()[3:])
     plt.xlabel("Sampling Period")
     plt.ylabel("Eddy-Feedback Parameter")
     plt.title("Bootstrap {} samples".format(n_resamples))
@@ -86,16 +83,20 @@ def main():
 
 
 def bootstrap_eddy_feedback_parameter(ep_flux, u_zm, n_resamples):
-    efp = []
+    results = []
     years = np.array(ep_flux.coord("season_year").points, dtype=int)
     for _ in tqdm(range(n_resamples)):
         samples = np.random.randint(0, len(years) - 1, size=len(years))
         ep_flux_sub = ep_flux[samples]
         u_zm_sub = u_zm[samples]
 
-        efp.append(eddy_feedback_parameter(ep_flux_sub, u_zm_sub).data)
+        efp = eddy_feedback_parameter(ep_flux_sub, u_zm_sub)
 
-    return efp
+        if "pressure_level" in [c.name() for c in efp.coords()]:
+            efp = efp.collapsed("pressure_level", MEAN)
+        results.append(efp.data)
+
+    return results
 
 
 if __name__ == "__main__":
