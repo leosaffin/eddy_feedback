@@ -1,14 +1,16 @@
 from pathlib import Path
 
+from parse import parse
 from tqdm import tqdm
 import numpy as np
 import iris
-from iris.analysis import MEAN
+from iris.analysis import MEAN, STD_DEV
 from iris.coord_categorisation import add_season_year
 
 from constrain.eddy_feedback_parameter import eddy_feedback_parameter
 
-from eddy_feedback import datadir
+from eddy_feedback import datadir, get_reanalysis_diagnostic, local_eddy_feedback_north_atlantic_index
+from eddy_feedback.nao_variance import season_mean, detrend
 
 cached_files = Path(__file__).parent / "bootstrap_data/"
 
@@ -88,5 +90,34 @@ def bootstrap_eddy_feedback_parameter(**kwargs):
         if "pressure_level" in [c.name() for c in efp.coords()]:
             efp = efp.collapsed("pressure_level", MEAN)
         results.append(efp.data)
+
+    return results
+
+
+@load_if_saved(filename="lefp_{start_year}-{end_year}_n{n_samples}_{plevs}_bootstrap.npy")
+def bootstrap_local_eddy_feedback_parameter(**kwargs):
+    lefp_era5 = iris.load_cube(local_eddy_feedback_north_atlantic_index.output_filename_era5)
+
+    plev = parse("{p:d}hPa", kwargs["plevs"])["p"]
+    lefp_era5 = lefp_era5.extract(iris.Constraint(pressure_level=plev))
+
+    results = []
+    for lefp_sample in extract_sample_years([lefp_era5], **kwargs):
+         results.append(lefp_sample[0].collapsed("season_year", MEAN).data)
+
+    return results
+
+
+@load_if_saved(filename="nao_{start_year}-{end_year}_{months_str}_n{n_samples}_bootstrap.npy")
+def bootstrap_nao(**kwargs):
+    nao = get_reanalysis_diagnostic("north_atlantic_oscillation", months="DJFM")
+    nao = season_mean(nao, months=kwargs["months"], seasons=["ndjfma", "mjjaso"])
+
+    if detrend in kwargs and kwargs["detrend"] is True:
+        nao = detrend(nao)
+
+    results = []
+    for nao_sub in extract_sample_years([nao], **kwargs):
+        results.append(nao_sub[0].collapsed("season_year", STD_DEV).data**2)
 
     return results
