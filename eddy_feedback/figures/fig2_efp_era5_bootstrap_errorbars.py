@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 from constrain.eddy_feedback_parameter import eddy_feedback_parameter
 
 from eddy_feedback import datadir, plotdir, bootstrapping
-from eddy_feedback.nao_variance import season_mean
 
 
 def main():
@@ -21,8 +20,8 @@ def main():
 
     n_samples = 1000
     months = ["Dec", "Jan", "Feb"]
-    seasons = ["ndjfma", "mjjaso"]
-    year_blocks = [(1940, 2022), (1940, 1979), (1979, 2022)]
+    cs = iris.Constraint(month=months)
+    year_blocks = [(1941, 2022), (1941, 1979), (1980, 2022)]
 
     # Store a list of each result labelled by the year range and pressure levels
     labels = []
@@ -30,14 +29,14 @@ def main():
     efp_full = []
 
     for plevs, suffix in [("500hPa", "NDJFM"), ("600-200hPa", "600-200hPa_DJF")]:
-        ep_flux = iris.load_cube(data_path / f"era5_daily_EP-flux-divergence_{suffix}.nc")
-        ep_flux = season_mean(ep_flux, months, seasons)
-        u_zm = iris.load_cube(data_path / f"era5_daily_zonal-mean-zonal-wind_{suffix}.nc")
-        u_zm = season_mean(u_zm, months, seasons)
+        ep_flux = iris.load_cube(data_path / f"era5_daily_EP-flux-divergence_{suffix}.nc", cs)
+        ep_flux = ep_flux.aggregated_by("season_year", MEAN)[1:-1]
+        u_zm = iris.load_cube(data_path / f"era5_daily_zonal-mean-zonal-wind_{suffix}.nc", cs)
+        u_zm = u_zm.aggregated_by("season_year", MEAN)[1:-1]
 
         # Calculate bootstrapped samples of the eddy-feedback parameter over the year ranges
         for start_year, end_year in year_blocks:
-            labels.append("{}-{}\n{}".format(start_year, end_year, plevs))
+            labels.append("{}-{}\n{}".format(start_year-1, end_year, plevs))
 
             # Calculate the eddy-feedback parameter for the full period
             cs = iris.Constraint(
@@ -53,8 +52,6 @@ def main():
             # Calculate the eddy-feedback parameter over samples from the specified
             # period
             efp.append(bootstrapping.bootstrap_eddy_feedback_parameter(
-                ep_flux_years,
-                u_zm_years,
                 start_year=start_year,
                 end_year=end_year,
                 n_samples=n_samples,

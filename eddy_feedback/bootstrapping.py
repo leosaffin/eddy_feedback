@@ -4,8 +4,11 @@ from tqdm import tqdm
 import numpy as np
 import iris
 from iris.analysis import MEAN
+from iris.coord_categorisation import add_season_year
 
 from constrain.eddy_feedback_parameter import eddy_feedback_parameter
+
+from eddy_feedback import datadir
 
 cached_files = Path(__file__).parent / "bootstrap_data/"
 
@@ -50,17 +53,36 @@ def sample_years(**kwargs):
 
 
 def extract_sample_years(cubes, **kwargs):
+    years = cubes[0].coord("season_year").points
+    assert kwargs["start_year"] >= years[0]
+    assert kwargs["end_year"] <= years[-1]
+
     samples = sample_years(**kwargs)
-    year_at_idx0 = cubes[0].coord("season_year").points[0]
     for n in tqdm(range(kwargs["n_samples"])):
-        yield [cube[samples[n, :] - year_at_idx0] for cube in cubes]
+        yield [cube[samples[n, :] - years[0]] for cube in cubes]
 
 
 @load_if_saved(filename="efp_{start_year}-{end_year}_n{n_samples}_{plevs}_bootstrap.npy")
-def bootstrap_eddy_feedback_parameter(ep_flux, u_zm, **kwargs):
-    results = []
+def bootstrap_eddy_feedback_parameter(**kwargs):
+    data_path = datadir / "eddy_feedback/daily_mean"
 
-    for ep_flux_sub, u_zm_sub in extract_sample_years([ep_flux, u_zm], **kwargs):
+    if kwargs["plevs"] == "500hPa":
+        suffix = "NDJFM"
+    else:
+        suffix = "600-200hPa_DJF"
+
+    ep_flux = iris.load_cube(data_path / f"era5_daily_EP-flux-divergence_{suffix}.nc")
+    u_zm = iris.load_cube(data_path / f"era5_daily_zonal-mean-zonal-wind_{suffix}.nc")
+
+    cubes = []
+    for cube in [ep_flux, u_zm]:
+        if "season_year" not in [c.name() for c in cube.coords()]:
+            add_season_year(cube, "time", seasons=["ndjfma", "mjjaso"])
+        cube_yearly = cube.aggregated_by("season_year", MEAN)[1:-1]
+        cubes.append(cube_yearly)
+
+    results = []
+    for ep_flux_sub, u_zm_sub in extract_sample_years(cubes, **kwargs):
         efp = eddy_feedback_parameter(ep_flux_sub, u_zm_sub)
 
         if "pressure_level" in [c.name() for c in efp.coords()]:
