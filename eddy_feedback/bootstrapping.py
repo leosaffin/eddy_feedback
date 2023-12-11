@@ -73,8 +73,9 @@ def bootstrap_eddy_feedback_parameter(**kwargs):
     else:
         suffix = "600-200hPa_DJF"
 
-    ep_flux = iris.load_cube(data_path / f"era5_daily_EP-flux-divergence_{suffix}.nc")
-    u_zm = iris.load_cube(data_path / f"era5_daily_zonal-mean-zonal-wind_{suffix}.nc")
+    cs = iris.Constraint(month=["Dec", "Jan", "Feb"])
+    ep_flux = iris.load_cube(data_path / f"era5_daily_EP-flux-divergence_{suffix}.nc", cs)
+    u_zm = iris.load_cube(data_path / f"era5_daily_zonal-mean-zonal-wind_{suffix}.nc", cs)
 
     cubes = []
     for cube in [ep_flux, u_zm]:
