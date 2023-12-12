@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import linregress
 
 import eddy_feedback
+from eddy_feedback import bootstrapping
 from eddy_feedback.figures import markers
 
 
@@ -23,6 +24,9 @@ def main():
     months = ["Dec", "Jan", "Feb"]
     years = "1850-2014"
     filter_size = 1
+
+    n_samples = 1000
+    plevs = "500hPa"
 
     months_str = "".join([m[0] for m in months])
     efp = eddy_feedback.get_files_by_model(
@@ -122,9 +126,21 @@ def main():
     )
 
     # ADD ERA5
-    for n, reanalysis in enumerate(["era5", "era5_1979-2020"]):
-        efp_era5 = np.load(f"efp_{reanalysis}_bootstrap.npy")
-        nao_era5 = np.load(f"nao_variance_{reanalysis}_bootstrap.npy")
+    for n, (start_year, end_year) in enumerate([(1941, 2022), (1980, 2022)]):
+        efp_era5 = bootstrapping.bootstrap_eddy_feedback_parameter(
+            start_year=start_year,
+            end_year=end_year,
+            n_samples=n_samples,
+            plevs=plevs,
+        )
+        nao_era5 = bootstrapping.bootstrap_nao(
+            start_year=start_year,
+            end_year=end_year,
+            n_samples=n_samples,
+            months=months,
+            months_str=months_str + "_detrended",
+            detrend=True,
+        )
         results[n + 2] = linregress(efp_era5, nao_era5)
 
         plt.axes(axes[1, n])
