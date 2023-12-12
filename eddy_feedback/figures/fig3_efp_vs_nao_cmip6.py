@@ -150,7 +150,7 @@ def main():
 
     plt.savefig(
         eddy_feedback.plotdir /
-        f"fig4_efp_nao_correlation_cmip6_{months_str}_{years}.png"
+        f"fig3_efp_nao_correlation_cmip6_{months_str}_{years}.png"
     )
     plt.show()
 
