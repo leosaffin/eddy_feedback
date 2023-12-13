@@ -70,7 +70,7 @@ def main():
     fig.subplots_adjust(bottom=0.15)
     cbar_ax = fig.add_axes([0.05, 0.1, 0.9, 0.015])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal")
-    cbar.set_label("Barotropic energy generation rate")
+    cbar.set_label(r"Barotropic energy generation rate (m$^2$ s$^{-3}$)")
 
     plt.savefig(plotdir / "figA1_lefp_NA_cmip6.png")
     plt.show()

@@ -64,7 +64,7 @@ def main():
     axes[0].plot(efp_era5_samples, lefp_era5_samples, ".k", alpha=0.1)
     axes[1].plot(nao_variance_era5_samples, lefp_era5_samples, ".k", alpha=0.1)
 
-    axes[0].set_ylabel("Barotropic Energy Generation Rate")
+    axes[0].set_ylabel("Barotropic Energy Generation Rate (m$^2$ s$^{-3}$)")
     axes[0].set_xlabel("Eddy-Feedback Parameter")
     axes[1].set_xlabel("NAO Variance (hPa)")
     fig.subplots_adjust(bottom=0.25)
