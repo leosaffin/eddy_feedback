@@ -18,13 +18,14 @@ import iris.plot as iplt
 import cmcrameri
 
 from eddy_feedback import datadir, plotdir
+from eddy_feedback.figures import label_axes
 
 
 def main():
     latitude = (25, 72)
     months = ["Dec", "Jan", "Feb"]
 
-    path = datadir / "constrain/eddy_feedback/daily_mean"
+    path = datadir / "eddy_feedback/daily_mean"
     ep_flux = iris.load_cube(path / "era5_daily_EP-flux-divergence_NDJFM.nc")
     u_zm = iris.load_cube(path / "era5_daily_zonal-mean-zonal-wind_NDJFM.nc")
 
@@ -85,6 +86,7 @@ def main():
         title="Correlation",
     )
 
+    label_axes(axes.flatten())
     plt.savefig(plotdir / "fig1_eddy-feedback-parameter_calculation_steps.png")
     plt.show()
 

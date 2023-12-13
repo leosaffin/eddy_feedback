@@ -1,6 +1,3 @@
-from string import ascii_lowercase
-
-import numpy as np
 import matplotlib.pyplot as plt
 import cmcrameri
 import iris
@@ -11,7 +8,7 @@ import cartopy.crs as ccrs
 from eddy_feedback import datadir, plotdir
 from eddy_feedback.nao_variance import season_mean
 from eddy_feedback.local_eddy_feedback_north_atlantic_index import box
-from eddy_feedback.figures import markers
+from eddy_feedback.figures import markers, label_axes
 
 
 def main():
@@ -44,12 +41,12 @@ def main():
         n_models += n_members
 
         plt.axes(axes[n // ncols, n % ncols])
-        make_plot(lefp_all, model, n, vmin=vmin, vmax=vmax, cmap=cmap)
+        make_plot(lefp_all, model, na_box=box, vmin=vmin, vmax=vmax, cmap=cmap)
 
     all_models = sum([m.data for m in all_models]) / n_models
     all_models = lefp_all.copy(data=all_models)
     plt.axes(axes[0, 1])
-    make_plot(all_models, "All Models", 1, vmin=vmin, vmax=vmax, cmap=cmap)
+    make_plot(all_models, "All Models", na_box=box, vmin=vmin, vmax=vmax, cmap=cmap)
 
     plt.axes(axes[0, 0])
     x = all_models.coord("longitude").points
@@ -65,8 +62,9 @@ def main():
     era5 = era5.aggregated_by("season_year", MEAN)
     era5 = era5.collapsed("time", MEAN)
 
-    im = make_plot(era5, "ERA5", 0, vmin=vmin, vmax=vmax, cmap=cmap)
+    im = make_plot(era5, "ERA5", na_box=box, vmin=vmin, vmax=vmax, cmap=cmap)
 
+    label_axes(axes.flatten())
     fig.subplots_adjust(bottom=0.15)
     cbar_ax = fig.add_axes([0.05, 0.1, 0.9, 0.015])
     cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal")
@@ -76,7 +74,7 @@ def main():
     plt.show()
 
 
-def make_plot(lefp, model, n, na_box=(-60, -25, 30, 45), **kwargs):
+def make_plot(lefp, model, na_box=(-60, -25, 30, 45), **kwargs):
     im = iplt.pcolormesh(lefp, **kwargs)
     ax = plt.gca()
     ax.coastlines()
@@ -87,7 +85,6 @@ def make_plot(lefp, model, n, na_box=(-60, -25, 30, 45), **kwargs):
     ax.plot([na_box[1], na_box[0]], [na_box[3], na_box[3]], "-k", transform=transform)
     ax.plot([na_box[0], na_box[0]], [na_box[3], na_box[2]], "-k", transform=transform)
 
-    ax.text(-0.1, 1.1, f"({ascii_lowercase[n]})", transform=ax.transAxes)
     ax.set_title(f"{model}")
 
     return im

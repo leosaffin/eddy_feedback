@@ -1,3 +1,5 @@
+from string import ascii_lowercase
+
 markers = {
     "CESM2": "oC3",
     "CMCC-CM2-SR5": "8C4",
@@ -13,3 +15,8 @@ markers = {
     "MPI-ESM1-2-LR": "vC2",
     "UKESM1-0-LL": "hC9",
 }
+
+
+def label_axes(axes, xpos=0.01, ypos=1.025):
+    for n, ax in enumerate(axes.flatten()):
+        ax.text(xpos, ypos, f"({ascii_lowercase[n]})", transform=ax.transAxes)

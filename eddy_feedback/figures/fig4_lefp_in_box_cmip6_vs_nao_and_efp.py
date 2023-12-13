@@ -1,12 +1,11 @@
-from string import ascii_lowercase
-
 import iris
 from iris.analysis import MEAN
 import numpy as np
 import matplotlib.pyplot as plt
 
 from eddy_feedback import plotdir, bootstrapping, local_eddy_feedback_north_atlantic_index
-from eddy_feedback.figures.fig3_efp_vs_nao_cmip6 import markers, get_data
+from eddy_feedback.figures import markers, label_axes
+from eddy_feedback.figures.fig3_efp_vs_nao_cmip6 import get_data
 
 
 def main():
@@ -67,11 +66,10 @@ def main():
     axes[0].set_ylabel("Barotropic Energy Generation Rate (m$^2$ s$^{-3}$)")
     axes[0].set_xlabel("Eddy-Feedback Parameter")
     axes[1].set_xlabel("NAO Variance (hPa)")
+
+    label_axes(axes)
     fig.subplots_adjust(bottom=0.25)
     fig.legend(loc="center", ncol=4, bbox_to_anchor=(0.5, 0.1))
-
-    for n, ax in enumerate(axes.flatten()):
-        ax.text(0.01, 1.02, f"({ascii_lowercase[n]})", transform=ax.transAxes)
 
     plt.savefig(plotdir / "fig4_lefp-in-box-cmip6_vs_efp_and_nao")
     plt.show()

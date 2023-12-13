@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from constrain.eddy_feedback_parameter import eddy_feedback_parameter
 
 from eddy_feedback import datadir, plotdir, bootstrapping
+from eddy_feedback.figures import label_axes
 
 
 data_path = datadir / "eddy_feedback/daily_mean"
@@ -41,14 +42,13 @@ def main():
     axes[0].set_xlabel("Sampling Period")
     axes[0].set_ylabel("Eddy-Feedback Parameter")
     axes[0].set_title("Sampling Uncertainty")
-    axes[0].text(0.01, 1.02, "(a)", transform=axes[0].transAxes)
 
     axes[1].set_xlabel("Year")
     axes[1].legend()
     axes[1].set_title("Multidecadal Variability")
     axes[1].axvline(2005, color="k")
-    axes[1].text(0.01, 1.02, "(b)", transform=axes[1].transAxes)
 
+    label_axes(axes.flatten())
     fig.suptitle("Eddy-Feedback Parameter - Reanalysis Uncertainties")
     fig.autofmt_xdate()
 

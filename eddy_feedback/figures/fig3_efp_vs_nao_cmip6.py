@@ -7,7 +7,6 @@ Plot of eddy-feedback parameter vs NAO for CMIP6 models and ERA5
 Adds a linear regression line for each figure. A second regression added to 2 showing
 the weighted average regression calculated individually for each model ensemble
 """
-from string import ascii_lowercase
 
 from collections import namedtuple
 import pandas as pd
@@ -17,7 +16,7 @@ from scipy.stats import linregress
 
 import eddy_feedback
 from eddy_feedback import bootstrapping
-from eddy_feedback.figures import markers
+from eddy_feedback.figures import markers, label_axes
 
 
 def main():
@@ -149,8 +148,7 @@ def main():
     axes[1, 1].axis("off")
     fig.legend(*axes[1, 0].get_legend_handles_labels(), ncol=2, loc="center", bbox_to_anchor=(0.7, 0.3))
 
-    for n, ax in enumerate(axes.flatten()[:3]):
-        ax.text(0.01, 1.02, f"({ascii_lowercase[n]})", transform=ax.transAxes)
+    label_axes(axes.flatten()[:3])
 
     plt.savefig(
         eddy_feedback.plotdir /
