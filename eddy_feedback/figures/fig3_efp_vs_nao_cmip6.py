@@ -1,10 +1,8 @@
 """
 Plot of eddy-feedback parameter vs NAO for CMIP6 models and ERA5
-1. ERA5 bootstrap eddy-feedback parameter vs NAO
-2. Same as 1, but only using 1979-2022
-3. CMIP6 ensemble means
-4. CMIP6 ensemble members
-5/6. Same as 3/4 but for multidecadal NAO variability
+1. CMIP6 EFP vs total NAO variance
+2. ERA5 EFP vs total NAO variance
+3. CMIP6 EFP vs multidecadal NAO variance
 
 Adds a linear regression line for each figure. A second regression added to 2 showing
 the weighted average regression calculated individually for each model ensemble
@@ -25,22 +23,15 @@ from eddy_feedback.figures import markers
 def main():
     months = ["Dec", "Jan", "Feb"]
     years = "1850-2014"
-
     n_samples = 1000
     plevs = "500hPa"
 
     months_str = "".join([m[0] for m in months])
 
-    # Holds the linear regression from each set of points to be plotted on each
-    # subfigure
-    results = []
-    results_weighted = []
-
-    fig, axes = plt.subplots(3, 2, figsize=(8, 12), sharex="all", sharey="row")
+    fig, axes = plt.subplots(2, 2, figsize=(8, 6), sharey="row")
     xp = np.arange(0, 1.0, 0.01)
-
     # Add ERA5
-    for n, (start_year, end_year) in enumerate([(1941, 2022), (1980, 2022)]):
+    for start_year, end_year, color in [(1941, 2022, "C0"), (1980, 2022, "C1")]:
         efp_era5 = bootstrapping.bootstrap_eddy_feedback_parameter(
             start_year=start_year,
             end_year=end_year,
@@ -55,12 +46,15 @@ def main():
             months_str=months_str,
             detrend=False,
         )
-        axes[0, n].plot(efp_era5, nao_era5, ".k", alpha=0.1)
-        results.append(linregress(efp_era5, nao_era5))
+        print(np.min(efp_era5), np.min(nao_era5))
+        print(np.max(efp_era5), np.max(nao_era5))
+        axes[0, 1].plot(efp_era5, nao_era5, f".{color}", alpha=0.1)
+        result = linregress(efp_era5, nao_era5)
+        axes[0, 1].plot(xp, result.slope * xp + result.intercept, f"-{color}", zorder=30, label=f"{start_year-1}-{end_year}")
 
     # Save model data to dictionaries to do model mean regression
     data = get_data(months_str, years)
-    models = sorted(set(data.model))
+    models = sorted(set(data.model), key=lambda x: x.lower())
 
     for n, nao_type in enumerate(["nao_variance", "nao_variance_multidecadal"]):
         efp_mean = []
@@ -75,29 +69,32 @@ def main():
         n_runs = 0
 
         for m, model in enumerate(models):
-            data_model = data.loc[data.model == model]
-            if n == 0:
+            if n == 1:
                 label = model
             else:
                 label = None
-            # Subfig 1 shows ensemble mean
-            efp_mean.append(np.mean(data_model.efp))
-            nao_mean.append(np.mean(data_model[nao_type]))
-            axes[n+1, 0].plot(
-                efp_mean[-1],
-                nao_mean[-1],
-                markers[model],
-                label=label,
-            )
 
-            # Subfig 2 shows all ensemble members
+            data_model = data.loc[data.model == model]
+
             efp_all.extend(data_model.efp)
             nao_all.extend(data_model[nao_type])
-            axes[n+1, 1].plot(
+            axes[n, 0].plot(
                 data_model.efp,
                 data_model[nao_type],
                 markers[model],
                 alpha=0.5,
+            )
+
+            # Overlay ensemble mean
+            efp_mean.append(np.mean(data_model.efp))
+            nao_mean.append(np.mean(data_model[nao_type]))
+            axes[n, 0].plot(
+                efp_mean[-1],
+                nao_mean[-1],
+                markers[model],
+                mec="k",
+                label=label,
+                zorder=20,
             )
 
             # Linear regression for individual model
@@ -111,41 +108,48 @@ def main():
 
         # Linear regressions
         # Ensemble mean of each model
-        results.append(linregress(efp_mean, nao_mean))
+        results_mean = linregress(efp_mean, nao_mean)
 
         # All simulations from all models
-        results.append(linregress(efp_all, nao_all))
+        results_all = linregress(efp_all, nao_all)
 
         # Weighted average of each model's regression
         res = namedtuple("result", ["rvalue", "slope", "intercept"])
-        results_weighted.append(res(
+        results_weighted = res(
             slope=weighted_average_slope / n_runs,
             intercept=weighted_average_intercept / n_runs,
             rvalue=weighted_average_r / n_runs,
-        ))
+        )
 
-    # Plot linear regressions
-    add_linear_regressions(axes.flatten()[:4], results[:4], results_weighted[0], xp)
-    add_linear_regressions(axes.flatten()[4:], results[4:], results_weighted[1], xp)
+        # Plot linear regressions
+        for result, linestyle, label in [
+            (results_mean, "-k", "Ensemble Mean"),
+            (results_all, "--k", "All Simulations"),
+            (results_weighted, ":k", "Weighted Average")
+        ]:
+            if n == 0:
+                axes[n, 1].plot(xp, result.slope * xp + result.intercept, linestyle, alpha=0.75)
+            else:
+                label = None
+            axes[n, 0].plot(xp, result.slope * xp + result.intercept, linestyle, alpha=0.75, label=label, zorder=30)
 
-    axes[0, 0].set_xlim(0.05, 0.6)
-    axes[0, 0].set_ylim(5, 34)
-    axes[1, 0].set_ylim(5, 34)
-    fig.text(0.5, 0.12, "Eddy-Feedback Parameter", ha="center")
-    fig.text(0.06, 0.65, "Total NAO Variance (hPa)", va="center", rotation="vertical")
-    axes[2, 0].set_ylabel("Multidecadal NAO Variance (hPa)")
+    for ax in axes.flatten():
+        ax.set_xlim(0.08, 0.6)
+    axes[0, 0].set_ylim(4, 32)
+    axes[1, 0].set_xlabel("Eddy-Feedback Parameter")
+    axes[0, 0].set_ylabel("NAO Variance (hPa)\nTotal")
+    axes[1, 0].set_ylabel("NAO Variance (hPa)\n20-Year Filter")
 
-    axes[0, 0].set_title("ERA5 (1940-2022)")
-    axes[0, 1].set_title("ERA5 (1979-2022)")
-
-    axes[1, 0].set_title("CMIP6 Ensemble Mean")
-    axes[1, 1].set_title("CMIP6 All Simulations")
+    axes[0, 0].set_title("CMIP6")
+    axes[0, 1].set_title("ERA5")
+    axes[0, 0].legend()
+    axes[0, 1].legend()
 
     # Add legend of labels for each CMIP6 model at bottom of figure
-    plt.subplots_adjust(bottom=0.15)
-    fig.legend(ncol=4, loc="center", bbox_to_anchor=(0.5, 0.05))
+    axes[1, 1].axis("off")
+    fig.legend(*axes[1, 0].get_legend_handles_labels(), ncol=2, loc="center", bbox_to_anchor=(0.7, 0.3))
 
-    for n, ax in enumerate(axes.flatten()):
+    for n, ax in enumerate(axes.flatten()[:3]):
         ax.text(0.01, 1.02, f"({ascii_lowercase[n]})", transform=ax.transAxes)
 
     plt.savefig(
@@ -204,24 +208,6 @@ def get_data(months_str, years):
             ), ignore_index=True)
 
     return data
-
-
-def add_linear_regressions(axes, results, results_weighted, xp):
-    # Plot linear regressions
-    for n, ax in enumerate(axes):
-        for m, result in enumerate(results):
-            if n == m:
-                alpha = 1.0
-            else:
-                alpha = 0.5
-            ax.plot(xp, result.slope * xp + result.intercept, "-k", alpha=alpha)
-        print(results[n])
-
-    # Add weighted average regression separately
-    for ax in axes:
-        ax.plot(xp, results_weighted.slope * xp + results_weighted.intercept, "--k", alpha=0.5)
-    axes[-1].plot(xp, results_weighted.slope * xp + results_weighted.intercept, "--k")
-    print("Weighted Average", results_weighted)
 
 
 if __name__ == '__main__':
