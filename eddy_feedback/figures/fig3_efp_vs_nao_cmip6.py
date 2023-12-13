@@ -9,13 +9,20 @@ the weighted average regression calculated individually for each model ensemble
 """
 
 from collections import namedtuple
+
+import iris
+from iris.analysis import MEAN, STD_DEV
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn
 from scipy.stats import linregress
 
+from constrain.eddy_feedback_parameter import eddy_feedback_parameter
+
 import eddy_feedback
-from eddy_feedback import bootstrapping
+from eddy_feedback import bootstrapping, datadir, get_reanalysis_diagnostic
+from eddy_feedback.nao_variance import season_mean
 from eddy_feedback.figures import markers, label_axes
 
 
@@ -27,7 +34,20 @@ def main():
 
     months_str = "".join([m[0] for m in months])
 
+    month_cs = iris.Constraint(month=months)
+    data_path = datadir / "eddy_feedback/daily_mean/"
+    ep_flux = iris.load_cube(data_path / f"era5_daily_EP-flux-divergence_NDJFM.nc", month_cs)
+    ep_flux = ep_flux.aggregated_by("season_year", MEAN)[1:-1]
+    u_zm = iris.load_cube(data_path / f"era5_daily_zonal-mean-zonal-wind_NDJFM.nc", month_cs)
+    u_zm = u_zm.aggregated_by("season_year", MEAN)[1:-1]
+    nao = get_reanalysis_diagnostic("north_atlantic_oscillation", months="DJFM")
+    nao = season_mean(nao, months=months, seasons=["ndjfma", "mjjaso"])
+
     fig, axes = plt.subplots(2, 2, figsize=(8, 6), sharey="row")
+    kde_ax_x = axes[0, 1].twinx()
+    kde_ax_x.yaxis.set_visible(False)
+    kde_ax_y = axes[0, 1].twiny()
+    kde_ax_y.xaxis.set_visible(False)
     xp = np.arange(0, 1.0, 0.01)
     # Add ERA5
     for start_year, end_year, color in [(1941, 2022, "C0"), (1980, 2022, "C1")]:
@@ -48,8 +68,20 @@ def main():
         print(np.min(efp_era5), np.min(nao_era5))
         print(np.max(efp_era5), np.max(nao_era5))
         axes[0, 1].plot(efp_era5, nao_era5, f".{color}", alpha=0.1)
+        seaborn.kdeplot(x=efp_era5, ax=kde_ax_x, color=color, fill=True, alpha=0.5)
+        seaborn.kdeplot(y=nao_era5, ax=kde_ax_y, color=color, fill=True, alpha=0.5)
         result = linregress(efp_era5, nao_era5)
-        axes[0, 1].plot(xp, result.slope * xp + result.intercept, f"-{color}", zorder=30, label=f"{start_year-1}-{end_year}")
+        axes[0, 1].plot(xp, result.slope * xp + result.intercept, f"-{color}", zorder=20)
+
+        # Add full value
+        time_cs = iris.Constraint(
+            season_year=lambda cell: start_year <= cell <= end_year
+        )
+        ep_flux_years = ep_flux.extract(time_cs)
+        u_zm_years = u_zm.extract(time_cs)
+        efp_full = eddy_feedback_parameter(ep_flux_years, u_zm_years).data
+        nao_full = nao.extract(time_cs).collapsed("season_year", STD_DEV).data ** 2
+        axes[0, 1].plot(efp_full, nao_full, f"o{color}", mec="k", zorder=30, label=f"{start_year-1}-{end_year}")
 
     # Save model data to dictionaries to do model mean regression
     data = get_data(months_str, years)
@@ -122,9 +154,9 @@ def main():
 
         # Plot linear regressions
         for result, linestyle, label in [
-            (results_mean, "-k", "Ensemble Mean"),
-            (results_all, "--k", "All Simulations"),
-            (results_weighted, ":k", "Weighted Average")
+            (results_mean, "-k", "Mean"),
+            (results_all, "--k", "All"),
+            (results_weighted, ":k", "Weighted")
         ]:
             if n == 0:
                 axes[n, 1].plot(xp, result.slope * xp + result.intercept, linestyle, alpha=0.75)
@@ -135,6 +167,10 @@ def main():
     for ax in axes.flatten():
         ax.set_xlim(0.08, 0.6)
     axes[0, 0].set_ylim(4, 32)
+    kde_ax_x.set_ylim(0, 50)
+    kde_ax_y.set_xlim(1, 0)
+
+    axes[0, 1].set_xlabel("Eddy-Feedback Parameter")
     axes[1, 0].set_xlabel("Eddy-Feedback Parameter")
     axes[0, 0].set_ylabel("NAO Variance (hPa)\nTotal")
     axes[1, 0].set_ylabel("NAO Variance (hPa)\n20-Year Filter")
