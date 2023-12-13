@@ -55,7 +55,7 @@ def sample_years(**kwargs):
 
 
 def extract_sample_years(cubes, **kwargs):
-    years = cubes[0].coord("season_year").points
+    years = cubes[0].coord("season_year").points.astype(int)
     assert kwargs["start_year"] >= years[0]
     assert kwargs["end_year"] <= years[-1]
 
