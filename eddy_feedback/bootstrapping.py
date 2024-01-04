@@ -45,12 +45,17 @@ def load_if_saved(filename):
     return decorator
 
 
-@load_if_saved(filename="sample_years_{start_year}-{end_year}_n{n_samples}.npy")
+@load_if_saved(filename="sample_years_{start_year}-{end_year}_l{length}_n{n_samples}.npy")
 def sample_years(**kwargs):
+    if "length" not in kwargs:
+        length = kwargs["end_year"] - kwargs["start_year"]
+    else:
+        length = kwargs["length"]
+
     return np.random.randint(
         kwargs["start_year"],
         kwargs["end_year"] + 1,
-        size=(kwargs["n_samples"], kwargs["end_year"] - kwargs["start_year"]),
+        size=(kwargs["n_samples"], length),
     )
 
 
@@ -64,7 +69,7 @@ def extract_sample_years(cubes, **kwargs):
         yield [cube[samples[n, :] - years[0]] for cube in cubes]
 
 
-@load_if_saved(filename="efp_{start_year}-{end_year}_n{n_samples}_{plevs}_bootstrap.npy")
+@load_if_saved(filename="efp_{start_year}-{end_year}_l{length}_n{n_samples}_{plevs}_bootstrap.npy")
 def bootstrap_eddy_feedback_parameter(**kwargs):
     data_path = datadir / "eddy_feedback/daily_mean"
 
@@ -95,7 +100,7 @@ def bootstrap_eddy_feedback_parameter(**kwargs):
     return results
 
 
-@load_if_saved(filename="lefp_{start_year}-{end_year}_n{n_samples}_{plevs}_bootstrap.npy")
+@load_if_saved(filename="lefp_{start_year}-{end_year}_l{length}_n{n_samples}_{plevs}_bootstrap.npy")
 def bootstrap_local_eddy_feedback_parameter(**kwargs):
     lefp_era5 = iris.load_cube(local_eddy_feedback_north_atlantic_index.output_filename_era5)
 
@@ -109,7 +114,7 @@ def bootstrap_local_eddy_feedback_parameter(**kwargs):
     return results
 
 
-@load_if_saved(filename="nao_{start_year}-{end_year}_{months_str}_n{n_samples}_bootstrap.npy")
+@load_if_saved(filename="nao_{start_year}-{end_year}_{months_str}_l{length}_n{n_samples}_bootstrap.npy")
 def bootstrap_nao(**kwargs):
     nao = get_reanalysis_diagnostic("north_atlantic_oscillation", months="DJFM")
     nao = season_mean(nao, months=kwargs["months"], seasons=["ndjfma", "mjjaso"])
