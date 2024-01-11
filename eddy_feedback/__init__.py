@@ -15,6 +15,7 @@ diagnostic_path = dict(
     eddy_feedback=datadir / "eddy_feedback_parameter_data/ESGF_JASMIN_IPSL/",
     local_eddy_feedback=datadir / "local_eddy_feedback_parameter_data/ESGF_JASMIN",
     local_eddy_feedback_monthly=datadir / "local_eddy_feedback_parameter_data/Monthly_local_EFP_IPSL/",
+    local_eddy_feedback_components=datadir / "local_eddy_feedback_parameter_data/components/",
     north_atlantic_oscillation=datadir / "NAO_index_data",
     jet=datadir / "Up0NA_index_data",
 )
@@ -23,6 +24,7 @@ filename_pattern = dict(
     eddy_feedback="EFP_CMIP6_LE_hist_{model}_{months}_{years}.csv",
     local_eddy_feedback="G_mean_lat_lon_{months}_{model}_historical_{variant}.nc",
     local_eddy_feedback_monthly="G_lat_lon_{months}_{model}_historical_{variant}_monthly.nc",
+    local_eddy_feedback_components="G_mean_lat_lon_{months}_{model}_historical_{variant}.nc",
     north_atlantic_oscillation="NAOI_monthly_{months}_{model}_historical_{variant}.nc",
     jet="U500NA_monthly_{months}_{model}_historical_{variant}.nc",
 )

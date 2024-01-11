@@ -3,14 +3,11 @@ Calculate a North Atlantic index for the local eddy feedback by averaging over a
 for the seasonal mean
 """
 
-
 import iris
-from iris.analysis import MEAN
 
 from constrain.north_atlantic_oscillation import box_average
 
 from eddy_feedback import get_files_by_model, datadir
-from eddy_feedback.nao_variance import season_mean
 
 output_filename = str(
     datadir / "local_eddy_feedback_parameter_data/north_atlantic_index/"
@@ -19,38 +16,42 @@ output_filename = str(
 output_filename_era5 = output_filename.format(
     model="ERA5", variant=""
 ).replace("_historical_", "")
+output_filename_jra55 = output_filename.format(
+    model="JRA55", variant=""
+).replace("_historical_", "")
 
 box = [-60, -25, 30, 45]
 
 
 def main():
-    months = ["Dec", "Jan", "Feb"]
-    seasons = ["ndjfma", "mjjaso"]
+    # CMIP6 from DJF-mean data
+    lefp_data = get_files_by_model("local_eddy_feedback_components", months="DJF")
 
-    lefp = get_files_by_model("local_eddy_feedback_monthly", months="DJFM")
-
-    for n, row in lefp.iterrows():
+    for n, row in lefp_data.iterrows():
         model = row["model"]
         variant = row["variant"]
 
         print(model, variant)
+        fname = output_filename.format(model=model, variant=variant)
 
-        lefp = iris.load_cube(row.filename)
-        lefp = season_mean(lefp, months=months, seasons=seasons)
-        mean = box_average(lefp, box)
+        lefp = iris.load_cube(row.filename, "barotropic_energy_generation_rate")
 
-        iris.save(mean, output_filename.format(model=model, variant=variant))
+        if lefp.coord("season_year").points[0] < 1900:
+            mean = box_average(lefp, box)
+            iris.save(mean, fname)
+        else:
+            print("Not full historical period")
 
-    # Repeat for ERA5
-    # Slightly different set of steps because the data is stored daily rather than
-    # monthly
-    lefp = iris.load_cube(
-        datadir / "local_eddy_feedback_parameter_data/daily/G_mean_MC89_lat_lon_DJF_ERA5.nc",
-        iris.Constraint(month=months)
-    )
-    lefp = lefp.aggregated_by("season_year", MEAN)
+    # ERA5
+    path = datadir / "local_eddy_feedback_parameter_data/daily/"
+    lefp = iris.load_cube(path / "G_mean_FY02_lat_lon_DJF_ERA5.nc")
     mean = box_average(lefp, box)
     iris.save(mean, output_filename_era5)
+
+    # JRA55
+    lefp = iris.load_cube(path / "G_mean_FY02_lat_lon_DJF_JRA55.nc")
+    mean = box_average(lefp, box)
+    iris.save(mean, output_filename_jra55)
 
 
 if __name__ == "__main__":
