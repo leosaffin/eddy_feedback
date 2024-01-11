@@ -55,7 +55,7 @@ def main():
         cmap="cubehelix_r",
         coords=coords,
         cbar_label="m s$^{-1}$",
-        title=r"$\bar{\mathbf{u}}$",
+        title=r"$\bar{u}$",
         vmin=0
     )
 
@@ -65,7 +65,7 @@ def main():
         cmap="cmc.vik",
         coords=coords,
         cbar_label="m s$^{-2}$",
-        title=r"$\nabla_\phi \mathbf{F}$",
+        title=r"$\frac{\nabla . \mathbf{F}_{H}}{\rho a cos(\phi)}$",
     )
 
     plt.axes(axes[1, 0])
