@@ -29,6 +29,7 @@ from eddy_feedback.figures import markers, label_axes
 def main():
     months = ["Dec", "Jan", "Feb"]
     years = "1850-2014"
+    length = 164
     n_samples = 1000
     plevs = "500hPa"
 
@@ -48,18 +49,20 @@ def main():
     kde_ax_x.yaxis.set_visible(False)
     kde_ax_y = axes[0, 1].twiny()
     kde_ax_y.xaxis.set_visible(False)
-    xp = np.arange(0, 1.0, 0.01)
+    xp = np.arange(0, 0.5, 0.01)
     # Add ERA5
-    for start_year, end_year, color in [(1941, 2022, "C0"), (1980, 2022, "C1")]:
+    for start_year, end_year, color in [(1941, 2022, "C0")]:
         efp_era5 = bootstrapping.bootstrap_eddy_feedback_parameter(
             start_year=start_year,
             end_year=end_year,
+            length=length,
             n_samples=n_samples,
             plevs=plevs,
         )
         nao_era5 = bootstrapping.bootstrap_nao(
             start_year=start_year,
             end_year=end_year,
+            length=length,
             n_samples=n_samples,
             months=months,
             months_str=months_str,
@@ -84,14 +87,12 @@ def main():
         axes[0, 1].plot(efp_full, nao_full, f"o{color}", mec="k", zorder=30, label=f"{start_year-1}-{end_year}")
 
     # Save model data to dictionaries to do model mean regression
-    data = get_data(months_str, years)
+    data = pd.read_csv(datadir / "CMIP6_diagnostics_by_model.csv")
     models = sorted(set(data.model), key=lambda x: x.lower())
 
     for n, nao_type in enumerate(["nao_variance", "nao_variance_multidecadal"]):
         efp_mean = []
         nao_mean = []
-        efp_all = []
-        nao_all = []
 
         # Plot the cloud of points for each model and calculate a linear regression
         weighted_average_r = 0.0
@@ -107,8 +108,6 @@ def main():
 
             data_model = data.loc[data.model == model]
 
-            efp_all.extend(data_model.efp)
-            nao_all.extend(data_model[nao_type])
             axes[n, 0].plot(
                 data_model.efp,
                 data_model[nao_type],
@@ -142,7 +141,7 @@ def main():
         results_mean = linregress(efp_mean, nao_mean)
 
         # All simulations from all models
-        results_all = linregress(efp_all, nao_all)
+        results_all = linregress(data.efp, data[nao_type])
 
         # Weighted average of each model's regression
         res = namedtuple("result", ["rvalue", "slope", "intercept"])
@@ -165,10 +164,10 @@ def main():
             axes[n, 0].plot(xp, result.slope * xp + result.intercept, linestyle, alpha=0.75, label=label, zorder=30)
 
     for ax in axes.flatten():
-        ax.set_xlim(0.08, 0.6)
-    axes[0, 0].set_ylim(4, 32)
-    kde_ax_x.set_ylim(0, 50)
-    kde_ax_y.set_xlim(1, 0)
+        ax.set_xlim(0.1, 0.4)
+    axes[0, 0].set_ylim(4, 29)
+    kde_ax_x.set_ylim(0, 75)
+    kde_ax_y.set_xlim(0.9, 0)
 
     axes[0, 1].set_xlabel("Eddy-Feedback Parameter")
     axes[1, 0].set_xlabel("Eddy-Feedback Parameter")
@@ -178,7 +177,6 @@ def main():
     axes[0, 0].set_title("CMIP6")
     axes[0, 1].set_title("ERA5")
     axes[0, 0].legend()
-    axes[0, 1].legend()
 
     # Add legend of labels for each CMIP6 model at bottom of figure
     axes[1, 1].axis("off")
@@ -191,57 +189,6 @@ def main():
         f"fig3_efp_nao_correlation_cmip6_{months_str}_{years}.png"
     )
     plt.show()
-
-
-def get_data(months_str, years):
-    # Load in model eddy-feedback and NAO variance
-    efp_files = eddy_feedback.get_files_by_model(
-        "eddy_feedback", months=months_str, years=years
-    )
-    data = pd.DataFrame(dict(
-        model=[], variant=[], efp=[], nao_variance=[], nao_variance_multidecadal=[]
-    ))
-
-    nao_1yr = pd.read_csv(
-        eddy_feedback.datadir /
-        f"NAO_index_data/nao_1-year-variance_{months_str}.csv"
-    )
-    nao_20yr = pd.read_csv(
-        eddy_feedback.datadir /
-        f"NAO_index_data/nao_20-year-variance_{months_str}.csv"
-    )
-
-    for n, row in efp_files.iterrows():
-        model = row["model"]
-        fname = str(row["filename"])
-
-        # EFP data gives the actual values of the eddy-feedback parameter and
-        # catalogue fname gives the matching variant labels
-        efp_data = pd.read_csv(fname, header=None)
-        catalogue_fname = fname.replace("EFP", "catalogue").replace(
-            f"{model}_{months_str}_{years}", f"daily_ua_va_Spirit_{years}_{model}"
-        )
-        catalogue = pd.read_csv(catalogue_fname, header=None)
-
-        if len(catalogue) != len(efp_data):
-            raise ValueError(f"Catalogue for {model} does not match data")
-
-        # Add EFP and NAO variance to rows of pandas.DataSet for each model/variant
-        for m, catalogue_row in catalogue.iterrows():
-            variant = catalogue_row[2]
-            data = data.append(dict(
-                model=model,
-                variant=variant,
-                efp=efp_data[0][m],
-                nao_variance=nao_1yr.loc[np.logical_and(
-                    nao_1yr["model"] == model, nao_1yr['variant'] == variant
-                )].iloc[0]["nao_variance"],
-                nao_variance_multidecadal=nao_20yr.loc[np.logical_and(
-                    nao_20yr["model"] == model, nao_20yr['variant'] == variant
-                )].iloc[0]["nao_variance"],
-            ), ignore_index=True)
-
-    return data
 
 
 if __name__ == '__main__':
