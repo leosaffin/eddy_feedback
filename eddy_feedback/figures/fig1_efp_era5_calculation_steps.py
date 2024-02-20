@@ -86,8 +86,12 @@ def main():
         title="Correlation",
     )
 
+    axes[1, 0].set_xticks(range(1950, 2020+1, 10))
+    axes[1, 0].xaxis.set_tick_params(rotation=45)
+    axes[1, 1].xaxis.set_tick_params(rotation=45)
+    fig.text(0.05, 0.5, "Latitude", rotation="vertical", va="center")
     label_axes(axes.flatten())
-    plt.savefig(plotdir / "fig1_eddy-feedback-parameter_calculation_steps.png")
+    plt.savefig(plotdir / "fig1_eddy-feedback-parameter_calculation_steps.pdf")
     plt.show()
 
 

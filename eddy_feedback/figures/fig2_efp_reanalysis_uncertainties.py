@@ -50,8 +50,8 @@ def main():
     legend1 = axes[1].legend()
     axes[1].legend(
         handles=[
-            Line2D([], [], color="C0", linestyle="-", label="EFP"),
-            Line2D([], [], color="C0", linestyle="--", label="NAO"),
+            Line2D([], [], color="C7", linestyle="-", label="EFP"),
+            Line2D([], [], color="C7", linestyle="--", label="NAO"),
         ],
         loc="upper left", bbox_to_anchor=[0.0, 0.85],
     )
@@ -63,7 +63,7 @@ def main():
     fig.suptitle("Eddy-Feedback Parameter - Reanalysis Uncertainties")
     fig.autofmt_xdate()
 
-    plt.savefig(plotdir / f"fig2_efp_reanalysis_uncertainties.png")
+    plt.savefig(plotdir / f"fig2_efp_reanalysis_uncertainties.pdf")
     plt.show()
 
 
@@ -110,7 +110,7 @@ def panel_a(ax, n_samples, months):
 
     # Plot box-and-whisker plot for each time period
     positions = [1, 2, 3]
-    ax.boxplot(efp, whis=(2.5, 97.5))
+    ax.boxplot(efp, whis=(2.5, 97.5), medianprops=dict(color="C7"))
     ax.plot(positions, efp_full, "kx")
     ax.set_xticks(positions, labels)
 
@@ -120,9 +120,9 @@ def panel_b(ax, window_size, months):
     cs = iris.Constraint(month=months)
 
     for n, (reanalysis, pressure_levels, months_str, linestyle) in enumerate([
-        ("ERA5", "500hPa", "NDJFM", "-C0"),
+        ("ERA5", "500hPa", "NDJFM", "-C7"),
         #("ERA5", "600-200hPa", "DJF", "--k"),
-        ("ERA20c", "500hPa", "DJF", "-C1"),
+        ("ERA20c", "500hPa", "DJF", "-C0"),
     ]):
         data = []
         for variable in ["EP-flux-divergence", "zonal-mean-zonal-wind"]:
@@ -144,12 +144,12 @@ def panel_b(ax, window_size, months):
     nao_era5 = iris.load_cube(datadir / "NAO_index_data" / "NAOI_monthly_DJFM_ERA5.nc")
     nao_era5 = season_mean(nao_era5, months=months, seasons=["ndjfma", "mjjaso"])
     nao_era5 = nao_era5.rolling_window("season_year", MEAN, window_size)
-    iplt.plot(nao_era5.coord("season_year"), nao_era5, "--C0", alpha=0.75)
+    iplt.plot(nao_era5.coord("season_year"), nao_era5, "--C7", alpha=0.75)
 
     nao_era20c = iris.load_cube(datadir / "NAO_index_data" / "NAOI_monthly_all_ERA20C_CanESM5-grid.nc")
     nao_era20c = season_mean(nao_era20c, months=months, seasons=["ndjfma", "mjjaso"])
     nao_era20c = nao_era20c.rolling_window("season_year", MEAN, window_size)
-    iplt.plot(nao_era20c.coord("season_year"), nao_era20c, "--C1", alpha=0.75)
+    iplt.plot(nao_era20c.coord("season_year"), nao_era20c, "--C0", alpha=0.75)
 
     ax2.set_ylim(6, 12.5)
     ax2.set_ylabel("NAO (hPa)")
