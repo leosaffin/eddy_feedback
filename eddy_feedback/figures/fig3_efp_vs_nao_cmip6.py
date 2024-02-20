@@ -15,13 +15,13 @@ from iris.analysis import MEAN, STD_DEV
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import seaborn
 from scipy.stats import linregress
 
 from constrain.eddy_feedback_parameter import eddy_feedback_parameter
 
-import eddy_feedback
-from eddy_feedback import bootstrapping, datadir, get_reanalysis_diagnostic
+from eddy_feedback import bootstrapping, datadir, plotdir, get_reanalysis_diagnostic
 from eddy_feedback.nao_variance import season_mean
 from eddy_feedback.figures import markers, label_axes
 
@@ -51,7 +51,7 @@ def main():
     kde_ax_y.xaxis.set_visible(False)
     xp = np.arange(0, 0.5, 0.01)
     # Add ERA5
-    for start_year, end_year, color in [(1941, 2022, "C0")]:
+    for start_year, end_year, color in [(1941, 2022, "C7")]:
         efp_era5 = bootstrapping.bootstrap_eddy_feedback_parameter(
             start_year=start_year,
             end_year=end_year,
@@ -68,12 +68,11 @@ def main():
             months_str=months_str,
             detrend=False,
         )
-        print(np.min(efp_era5), np.min(nao_era5))
-        print(np.max(efp_era5), np.max(nao_era5))
         axes[0, 1].plot(efp_era5, nao_era5, f".{color}", alpha=0.1)
         seaborn.kdeplot(x=efp_era5, ax=kde_ax_x, color=color, fill=True, alpha=0.5)
         seaborn.kdeplot(y=nao_era5, ax=kde_ax_y, color=color, fill=True, alpha=0.5)
         result = linregress(efp_era5, nao_era5)
+        print_as_latex(result, "ERA5")
         axes[0, 1].plot(xp, result.slope * xp + result.intercept, f"-{color}", zorder=20)
 
         # Add full value
@@ -86,82 +85,50 @@ def main():
         nao_full = nao.extract(time_cs).collapsed("season_year", STD_DEV).data ** 2
         axes[0, 1].plot(efp_full, nao_full, f"o{color}", mec="k", zorder=30, label=f"{start_year-1}-{end_year}")
 
-    # Save model data to dictionaries to do model mean regression
+    # Add CMIP6 models
     data = pd.read_csv(datadir / "CMIP6_diagnostics_by_model.csv")
     models = sorted(set(data.model), key=lambda x: x.lower())
+    for model in models:
+        data_model = data.loc[data.model == model]
+        efp_mean = np.mean(data_model.efp)
 
-    for n, nao_type in enumerate(["nao_variance", "nao_variance_multidecadal"]):
-        efp_mean = []
-        nao_mean = []
-
-        # Plot the cloud of points for each model and calculate a linear regression
-        weighted_average_r = 0.0
-        weighted_average_slope = 0.0
-        weighted_average_intercept = 0.0
-        n_runs = 0
-
-        for m, model in enumerate(models):
+        for n, nao_type in enumerate(["nao_variance", "nao_variance_multidecadal"]):
             if n == 1:
                 label = model
             else:
                 label = None
 
-            data_model = data.loc[data.model == model]
-
+            # Ensemble mean
             axes[n, 0].plot(
-                data_model.efp,
-                data_model[nao_type],
-                markers[model],
-                alpha=0.5,
+                efp_mean, np.mean(data_model[nao_type]), markers[model], mec="k", zorder=10, label=label,
             )
 
-            # Overlay ensemble mean
-            efp_mean.append(np.mean(data_model.efp))
-            nao_mean.append(np.mean(data_model[nao_type]))
+            # Ensemble members
             axes[n, 0].plot(
-                efp_mean[-1],
-                nao_mean[-1],
-                markers[model],
-                mec="k",
-                label=label,
-                zorder=20,
+                data_model.efp, data_model[nao_type], markers[model], alpha=0.5
             )
 
-            # Linear regression for individual model
-            result = linregress(data_model.efp, data_model[nao_type])
-            print(model, result)
-            nvariants = len(data_model.variant)
-            weighted_average_r += result.rvalue * nvariants
-            weighted_average_slope += result.slope * nvariants
-            weighted_average_intercept += result.intercept * nvariants
-            n_runs += nvariants
+    # Linear regressions
+    efp_mean = [np.mean(data.loc[data.model == model].efp) for model in markers]
+    for n, diag in enumerate(["nao_variance", "nao_variance_multidecadal"]):
+        print("\n" + diag)
+        diag_mean = [np.mean(data.loc[data.model == model][diag]) for model in markers]
+        result_mean = linregress(efp_mean, diag_mean)
+        result_all = linregress(data.efp, data[diag])
+        result_weighted = weighted_average_regression(data, markers.keys(), "efp", diag)
 
-        # Linear regressions
-        # Ensemble mean of each model
-        results_mean = linregress(efp_mean, nao_mean)
+        print_as_latex(result_mean, "Mean")
+        print_as_latex(result_all, "All")
+        print_as_latex(result_weighted, "Weighted")
 
-        # All simulations from all models
-        results_all = linregress(data.efp, data[nao_type])
-
-        # Weighted average of each model's regression
-        res = namedtuple("result", ["rvalue", "slope", "intercept"])
-        results_weighted = res(
-            slope=weighted_average_slope / n_runs,
-            intercept=weighted_average_intercept / n_runs,
-            rvalue=weighted_average_r / n_runs,
-        )
-
-        # Plot linear regressions
-        for result, linestyle, label in [
-            (results_mean, "-k", "Mean"),
-            (results_all, "--k", "All"),
-            (results_weighted, ":k", "Weighted")
+        for result, linestyle in [
+            (result_mean, "-k"),
+            (result_all, "--k"),
+            (result_weighted, ":k"),
         ]:
-            if n == 0:
+            axes[n, 0].plot(xp, result.slope * xp + result.intercept, linestyle, alpha=0.75)
+            if "multidecadal" not in diag:
                 axes[n, 1].plot(xp, result.slope * xp + result.intercept, linestyle, alpha=0.75)
-            else:
-                label = None
-            axes[n, 0].plot(xp, result.slope * xp + result.intercept, linestyle, alpha=0.75, label=label, zorder=30)
 
     for ax in axes.flatten():
         ax.set_xlim(0.1, 0.4)
@@ -169,26 +136,59 @@ def main():
     kde_ax_x.set_ylim(0, 75)
     kde_ax_y.set_xlim(0.9, 0)
 
+    axes[0, 0].set_title("CMIP6")
+    axes[0, 1].set_title("ERA5")
     axes[0, 1].set_xlabel("Eddy-Feedback Parameter")
     axes[1, 0].set_xlabel("Eddy-Feedback Parameter")
     axes[0, 0].set_ylabel("NAO Variance (hPa)\nTotal")
     axes[1, 0].set_ylabel("NAO Variance (hPa)\n20-Year Filter")
-
-    axes[0, 0].set_title("CMIP6")
-    axes[0, 1].set_title("ERA5")
-    axes[0, 0].legend()
+    axes[1, 1].set_visible(False)
 
     # Add legend of labels for each CMIP6 model at bottom of figure
-    axes[1, 1].axis("off")
-    fig.legend(*axes[1, 0].get_legend_handles_labels(), ncol=2, loc="center", bbox_to_anchor=(0.7, 0.3))
+    custom_lines = [
+        Line2D([0], [0], linestyle=linestyle, color="k") for linestyle in ["-", "--", ":"]]
+    labels = ["Mean", "All", "Weighted"]
+    legend = axes[0, 0].legend(custom_lines, labels, framealpha=0.25)
+    legend.set_zorder(11)
+
+    custom_lines = [
+        Line2D([], [], marker=markers[model][0], color=markers[model][1:], linestyle="", mec="k")
+        for model in markers]
+    fig.legend(custom_lines, markers.keys(), ncol=2, loc="center", bbox_to_anchor=(0.7, 0.3))
 
     label_axes(axes.flatten()[:3])
 
-    plt.savefig(
-        eddy_feedback.plotdir /
-        f"fig3_efp_nao_correlation_cmip6_{months_str}_{years}.png"
-    )
+    plt.savefig(plotdir / f"fig3_efp_nao_correlation_cmip6_{months_str}_{years}.pdf")
     plt.show()
+
+
+res = namedtuple("result", ["slope", "intercept", "rvalue", "pvalue"])
+def weighted_average_regression(df, models, diag1, diag2):
+    slope, intercept, rvalue, n_runs = 0.0, 0.0, 0.0, 0
+    for model in models:
+        data_model = df.loc[df.model == model]
+        result_ = linregress(data_model[diag1], data_model[diag2])
+        print_as_latex(result_, model)
+        ensemble_size = len(data_model.index)
+        slope += result_.slope * ensemble_size
+        intercept += result_.intercept * ensemble_size
+        rvalue += result_.rvalue * ensemble_size
+        n_runs += ensemble_size
+
+    result_weighted = res(
+        slope=slope / n_runs,
+        intercept=intercept / n_runs,
+        rvalue=rvalue / n_runs,
+        pvalue=np.nan,
+    )
+    return result_weighted
+
+
+def print_as_latex(result, title):
+    print(
+        f"{title} & {result.slope:.2f} & {result.intercept:.2f} & {result.rvalue:.2g} &"
+        f"{result.pvalue:.2g} \\\\"
+    )
 
 
 if __name__ == '__main__':
