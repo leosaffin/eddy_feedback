@@ -9,7 +9,10 @@ from iris.coord_categorisation import add_season_year
 
 from constrain.eddy_feedback_parameter import eddy_feedback_parameter
 
-from eddy_feedback import datadir, get_reanalysis_diagnostic, local_eddy_feedback_north_atlantic_index
+from eddy_feedback import (
+    datadir, get_reanalysis_diagnostic, local_eddy_feedback_north_atlantic_index,
+    local_eddy_feedback_efp_region_index
+)
 from eddy_feedback.nao_variance import season_mean, detrend
 
 cached_files = Path(__file__).parent / "bootstrap_data/"
@@ -109,7 +112,21 @@ def bootstrap_local_eddy_feedback_parameter(**kwargs):
 
     results = []
     for lefp_sample in extract_sample_years([lefp_era5], **kwargs):
-         results.append(lefp_sample[0].collapsed("season_year", MEAN).data)
+        results.append(lefp_sample[0].collapsed("season_year", MEAN).data)
+
+    return results
+
+
+@load_if_saved(filename="lefp_efp_region_{start_year}-{end_year}_l{length}_n{n_samples}_{plevs}_bootstrap.npy")
+def bootstrap_local_eddy_feedback_parameter_efp_region(**kwargs):
+    lefp_era5 = iris.load_cube(local_eddy_feedback_efp_region_index.output_filename_era5)
+
+    plev = parse("{p:d}hPa", kwargs["plevs"])["p"]
+    lefp_era5 = lefp_era5.extract(iris.Constraint(pressure_level=plev))
+
+    results = []
+    for lefp_sample in extract_sample_years([lefp_era5], **kwargs):
+        results.append(lefp_sample[0].collapsed("season_year", MEAN).data)
 
     return results
 
