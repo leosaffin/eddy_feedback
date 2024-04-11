@@ -12,7 +12,7 @@ Panel (b) 23-year rolling window.
 
 from tqdm import tqdm
 import iris
-from iris.analysis import MEAN
+from iris.analysis import MEAN, STD_DEV
 from iris.coords import DimCoord
 import iris.plot as iplt
 import matplotlib.pyplot as plt
@@ -38,9 +38,6 @@ def main():
     panel_a(axes[0], n_samples, months)
     panel_b(axes[1], window_size, months)
 
-    axes[0].set_ylim(0, 0.62)
-    #axes[0].text(2, 0.55, "500hPa", ha="center", bbox=dict(facecolor='none', edgecolor='black'))
-    #axes[0].text(6, 0.55, "200-600hPa", ha="center", bbox=dict(facecolor='none', edgecolor='black'))
     axes[0].set_xlabel("Sampling Period")
     axes[0].set_ylabel("Eddy-Feedback Parameter")
     axes[0].set_title("Sampling Uncertainty")
@@ -51,7 +48,7 @@ def main():
     axes[1].legend(
         handles=[
             Line2D([], [], color="C7", linestyle="-", label="EFP"),
-            Line2D([], [], color="C7", linestyle="--", label="NAO"),
+            Line2D([], [], color="C7", linestyle="--", label=r"$\sigma^2$(NAO)"),
         ],
         loc="upper left", bbox_to_anchor=[0.0, 0.85],
     )
@@ -121,7 +118,6 @@ def panel_b(ax, window_size, months):
 
     for n, (reanalysis, pressure_levels, months_str, linestyle) in enumerate([
         ("ERA5", "500hPa", "NDJFM", "-C7"),
-        #("ERA5", "600-200hPa", "DJF", "--k"),
         ("ERA20c", "500hPa", "DJF", "-C0"),
     ]):
         data = []
@@ -143,16 +139,15 @@ def panel_b(ax, window_size, months):
     ax2 = plt.twinx()
     nao_era5 = iris.load_cube(datadir / "NAO_index_data" / "NAOI_monthly_DJFM_ERA5.nc")
     nao_era5 = season_mean(nao_era5, months=months, seasons=["ndjfma", "mjjaso"])
-    nao_era5 = nao_era5.rolling_window("season_year", MEAN, window_size)
+    nao_era5 = nao_era5.rolling_window("season_year", STD_DEV, window_size) ** 2
     iplt.plot(nao_era5.coord("season_year"), nao_era5, "--C7", alpha=0.75)
 
     nao_era20c = iris.load_cube(datadir / "NAO_index_data" / "NAOI_monthly_all_ERA20C_CanESM5-grid.nc")
     nao_era20c = season_mean(nao_era20c, months=months, seasons=["ndjfma", "mjjaso"])
-    nao_era20c = nao_era20c.rolling_window("season_year", MEAN, window_size)
+    nao_era20c = nao_era20c.rolling_window("season_year", STD_DEV, window_size) ** 2
     iplt.plot(nao_era20c.coord("season_year"), nao_era20c, "--C0", alpha=0.75)
 
-    ax2.set_ylim(6, 12.5)
-    ax2.set_ylabel("NAO (hPa)")
+    ax2.set_ylabel("NAO Variance (hPa)")
 
 
 def efp_rolling_window(ep_flux, u_zm, window_size):
