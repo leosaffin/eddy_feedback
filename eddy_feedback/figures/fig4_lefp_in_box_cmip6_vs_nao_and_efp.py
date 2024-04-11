@@ -9,18 +9,23 @@ import seaborn
 
 from constrain.eddy_feedback_parameter import eddy_feedback_parameter
 
-from eddy_feedback import datadir, plotdir, get_reanalysis_diagnostic, bootstrapping, local_eddy_feedback_north_atlantic_index
+from eddy_feedback import (
+    datadir, plotdir, get_reanalysis_diagnostic, bootstrapping,
+    local_eddy_feedback_north_atlantic_index
+)
 from eddy_feedback.nao_variance import season_mean
 from eddy_feedback.figures import markers, label_axes
-from eddy_feedback.figures.fig3_efp_vs_nao_cmip6 import weighted_average_regression, print_as_latex
+from eddy_feedback.figures.fig3_efp_vs_nao_cmip6 import (
+    weighted_average_regression, print_as_latex
+)
+
+months = ["Dec", "Jan", "Feb"]
+start_year, end_year = 1941, 2022
+n_samples = 1000
+length = 164
 
 
 def main():
-    months = ["Dec", "Jan", "Feb"]
-    start_year, end_year = 1941, 2022
-    n_samples = 1000
-    length = 164
-
     months_str = "".join([m[0] for m in months])
     fig, axes = plt.subplots(3, 2, figsize=(8, 8), sharey="row")
 
@@ -60,7 +65,6 @@ def main():
 
     axes[2, 1].plot(lefp_full, efp_full, "oC7", mec="k")
     axes[0, 1].plot(lefp_full, nao_full, "oC7", mec="k")
-    #axes[2].plot(lefp_full, nao_multidecadal, ".k", mec="grey")
 
     kde_ax_x = axes[0, 1].twinx()
     kde_ax_x.yaxis.set_visible(False)
@@ -163,6 +167,8 @@ def main():
     axes[1, 0].xaxis.set_ticklabels([])
 
     label_axes(np.concatenate((axes.flatten()[:3], axes.flatten()[4:]), axis=None))
+
+    print(axes[0, 1].get_ylim(), axes[2, 1].get_ylim())
 
     plt.savefig(plotdir / "fig4_lefp-in-box-cmip6_vs_efp_and_nao.pdf")
     plt.show()
